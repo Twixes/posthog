@@ -35,9 +35,9 @@ from posthog.models.instance_setting import set_instance_setting
 from posthog.models.oauth import OAuthAccessToken, OAuthApplication
 from posthog.models.organization import Organization, OrganizationMembership
 from posthog.models.organization_domain import OrganizationDomain
-from posthog.models.personal_api_key import PersonalAPIKey, hash_key_value
+from posthog.models.personal_api_key import PersonalAPIKey
 from posthog.models.team.team import Team
-from posthog.models.utils import generate_random_token_personal
+from posthog.models.utils import generate_random_token_personal, hash_key_value
 
 VALID_TEST_PASSWORD = "mighty-strong-secure-1337!!"
 
@@ -1155,6 +1155,7 @@ class TestPasswordResetAPI(APIBaseTest):
 
     def test_password_reset_is_case_insensitive(self):
         set_instance_setting("EMAIL_HOST", "localhost")
+        assert self.CONFIG_EMAIL is not None
 
         # User registered as "user1@posthog.com", request reset with different casing
         with self.settings(CELERY_TASK_ALWAYS_EAGER=True, SITE_URL="https://my.posthog.net"):
@@ -1783,7 +1784,7 @@ class TestTimeSensitivePermissions(APIBaseTest):
             assert res.status_code == 200
 
     def test_user_can_update_scene_personalisation_without_recent_authentication(self):
-        from posthog.models.dashboard import Dashboard
+        from products.dashboards.backend.models.dashboard import Dashboard
 
         dashboard = Dashboard.objects.create(team=self.team, name="Test")
         now = datetime.now()

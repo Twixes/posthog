@@ -16,6 +16,7 @@ export const KAFKA_PERSON_DISTINCT_ID2 = `${prefix}clickhouse_person_distinct_id
 export const KAFKA_EVENTS_PLUGIN_INGESTION = `${prefix}events_plugin_ingestion${suffix}`
 export const KAFKA_EVENTS_PLUGIN_INGESTION_DLQ = `${prefix}events_plugin_ingestion_dlq${suffix}`
 export const KAFKA_EVENTS_PLUGIN_INGESTION_OVERFLOW = `${prefix}events_plugin_ingestion_overflow${suffix}`
+export const KAFKA_EVENTS_PLUGIN_INGESTION_ASYNC = `${prefix}events_plugin_ingestion_async${suffix}`
 export const KAFKA_EVENTS_PLUGIN_INGESTION_HISTORICAL = `${prefix}events_plugin_ingestion_historical${suffix}`
 export const KAFKA_PLUGIN_LOG_ENTRIES = `${prefix}plugin_log_entries${suffix}`
 export const KAFKA_EVENTS_DEAD_LETTER_QUEUE = `${prefix}events_dead_letter_queue${suffix}`
@@ -34,6 +35,7 @@ export const KAFKA_SESSION_RECORDING_SNAPSHOT_ITEM_DLQ = `${prefix}session_recor
 // write session recording and replay events to ClickHouse
 export const KAFKA_CLICKHOUSE_SESSION_RECORDING_EVENTS = `${prefix}clickhouse_session_recording_events${suffix}`
 export const KAFKA_CLICKHOUSE_SESSION_REPLAY_EVENTS = `${prefix}clickhouse_session_replay_events${suffix}`
+export const KAFKA_CLICKHOUSE_SESSION_REPLAY_FEATURES = `${prefix}clickhouse_session_replay_features${suffix}`
 
 // write performance events to ClickHouse
 export const KAFKA_PERFORMANCE_EVENTS = `${prefix}clickhouse_performance_events${suffix}`
