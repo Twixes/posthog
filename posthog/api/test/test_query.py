@@ -10,6 +10,7 @@ from posthog.test.base import (
     flush_persons_and_events,
     snapshot_clickhouse_queries,
 )
+from parameterized import parameterized
 from unittest import mock
 from unittest.mock import patch
 
@@ -1106,6 +1107,26 @@ class TestQuery(ClickhouseTestMixin, APIBaseTest):
         assert isinstance(updated_query, RetentionQuery)
         assert updated_query.version == 2
         assert updated_query.retentionFilter.meanRetentionCalculation == MeanRetentionCalculation.SIMPLE
+
+
+class TestQueryRefreshBackwardCompatibility(ClickhouseTestMixin, APIBaseTest):
+    @parameterized.expand(
+        [
+            (True, status.HTTP_200_OK),
+            (False, status.HTTP_200_OK),
+        ]
+    )
+    def test_boolean_refresh_values_are_accepted(self, refresh_value, expected_status):
+        with freeze_time("2020-01-10 12:00:00"):
+            _create_event(team=self.team, event="$pageview", distinct_id="1")
+        flush_persons_and_events()
+
+        query = HogQLQuery(query="select * from events limit 1")
+        api_response = self.client.post(
+            f"/api/environments/{self.team.id}/query/",
+            {"query": query.dict(), "refresh": refresh_value},
+        )
+        self.assertEqual(api_response.status_code, expected_status)
 
 
 class TestQueryRetrieve(APIBaseTest):

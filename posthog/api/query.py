@@ -163,6 +163,12 @@ class QueryViewSet(QueryCoalescingMixin, TeamAndOrgViewSetMixin, PydanticModelMi
         self._validate_query_kind(request, kwargs.get("query_kind"))
         start_time = perf_counter()
         upgraded_query = upgrade(request.data)
+        # Coerce legacy boolean `refresh` values to RefreshType strings for backward compatibility.
+        # External API consumers may still send refresh=true/false (accepted before RefreshType was introduced).
+        if upgraded_query.get("refresh") is True:
+            upgraded_query["refresh"] = "force_blocking"
+        elif upgraded_query.get("refresh") is False:
+            upgraded_query["refresh"] = "force_cache"
         data = self.get_model(upgraded_query, QueryRequest)
 
         query = None
