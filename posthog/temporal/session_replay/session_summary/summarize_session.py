@@ -1,6 +1,5 @@
 import json
 import time
-import uuid
 import asyncio
 import dataclasses
 from collections.abc import AsyncGenerator, Generator
@@ -405,34 +404,14 @@ async def stream_llm_single_session_summary_activity(
     return last_summary_state_str
 
 
-@temporalio.workflow.defn(name="summarize-session-stream")
-class SummarizeSingleSessionStreamWorkflow(PostHogWorkflow):
-    @staticmethod
-    def parse_inputs(inputs: list[str]) -> SingleSessionSummaryInputs:
-        """Parse inputs from the management command CLI."""
-        loaded = json.loads(inputs[0])
-        return SingleSessionSummaryInputs(**loaded)
-
-    @temporalio.workflow.run
-    async def run(self, inputs: SingleSessionSummaryInputs) -> str:
-        await temporalio.workflow.execute_activity(
-            fetch_session_data_activity,
-            inputs,
-            start_to_close_timeout=timedelta(minutes=3),
-            retry_policy=RetryPolicy(maximum_attempts=3),
-        )
-        summary = await temporalio.workflow.execute_activity(
-            stream_llm_single_session_summary_activity,
-            inputs,
-            start_to_close_timeout=timedelta(minutes=5),
-            heartbeat_timeout=timedelta(seconds=30),
-            retry_policy=RetryPolicy(maximum_attempts=3),
-        )
-        return summary
-
-
 @temporalio.workflow.defn(name="summarize-session")
 class SummarizeSingleSessionWorkflow(PostHogWorkflow):
+    @classmethod
+    def workflow_id_for(cls, team_id: int, session_id: str, *, stream: bool = False) -> str:
+        """Stable Temporal workflow id (per team, session, and direct vs stream)."""
+        mode = "stream" if stream else "direct"
+        return f"session-summary:single:{mode}:{team_id}:{session_id}"
+
     def __init__(self) -> None:
         self._progress: SingleSessionProgress = {
             "phase": "starting",
@@ -493,6 +472,36 @@ class SummarizeSingleSessionWorkflow(PostHogWorkflow):
             start_to_close_timeout=timedelta(seconds=30),
             retry_policy=RetryPolicy(maximum_attempts=2),
         )
+
+
+@temporalio.workflow.defn(name="summarize-session-stream")
+class SummarizeSingleSessionStreamWorkflow(PostHogWorkflow):
+    @classmethod
+    def workflow_id_for(cls, team_id: int, session_id: str) -> str:
+        return SummarizeSingleSessionWorkflow.workflow_id_for(team_id, session_id, stream=True)
+
+    @staticmethod
+    def parse_inputs(inputs: list[str]) -> SingleSessionSummaryInputs:
+        """Parse inputs from the management command CLI."""
+        loaded = json.loads(inputs[0])
+        return SingleSessionSummaryInputs(**loaded)
+
+    @temporalio.workflow.run
+    async def run(self, inputs: SingleSessionSummaryInputs) -> str:
+        await temporalio.workflow.execute_activity(
+            fetch_session_data_activity,
+            inputs,
+            start_to_close_timeout=timedelta(minutes=3),
+            retry_policy=RetryPolicy(maximum_attempts=3),
+        )
+        summary = await temporalio.workflow.execute_activity(
+            stream_llm_single_session_summary_activity,
+            inputs,
+            start_to_close_timeout=timedelta(minutes=5),
+            heartbeat_timeout=timedelta(seconds=30),
+            retry_policy=RetryPolicy(maximum_attempts=3),
+        )
+        return summary
 
 
 def _validate_period(
@@ -942,9 +951,7 @@ def _prepare_execution(
         model_to_use=model_to_use,
         video_validation_enabled=video_validation_enabled,
     )
-    workflow_id = (
-        f"session-summary:single:{'stream' if stream else 'direct'}:{team.id}:{session_id}:{shared_id}:{uuid.uuid4()}"
-    )
+    workflow_id = SummarizeSingleSessionWorkflow.workflow_id_for(team.id, session_id, stream=stream)
     return redis_client, redis_input_key, redis_output_key, session_input, workflow_id
 
 
