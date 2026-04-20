@@ -230,6 +230,13 @@ class LinkedAccountsViewSet(viewsets.ViewSet):
                 )
         else:
             if sa is not None:
+                # Guardrail: don't strand users who rely on this social login.
+                if not user.has_usable_password():
+                    has_other_login = user.social_auth.exclude(provider=provider).exists()
+                    if not has_other_login:
+                        raise exceptions.ValidationError(
+                            "Set a password or link another sign-in method before disabling sign-in for this account."
+                        )
                 # Disable login: ensure identity row exists (backfill), then delete social_auth.
                 if identity is None:
                     UserSocialIdentity.objects.create(
