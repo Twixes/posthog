@@ -240,6 +240,31 @@ class TestLinkedAccountsEndpoints(APIBaseTest):
         self.assertFalse(UserSocialAuth.objects.filter(user=self.user, provider="github").exists())
         self.assertTrue(UserSocialIdentity.objects.filter(user=self.user, provider="github").exists())
 
+    def test_patch_disable_login_blocks_when_password_unusable_and_no_alt_login(self):
+        self.user.set_unusable_password()
+        self.user.save()
+        UserSocialAuth.objects.create(user=self.user, provider="github", uid="42", extra_data={"login": "octo"})
+        response = self.client.patch(
+            "/api/linked_accounts/github/",
+            {"login_enabled": False},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(UserSocialAuth.objects.filter(user=self.user, provider="github").exists())
+
+    def test_patch_disable_login_allowed_when_other_login_exists(self):
+        self.user.set_unusable_password()
+        self.user.save()
+        UserSocialAuth.objects.create(user=self.user, provider="github", uid="42", extra_data={"login": "octo"})
+        UserSocialAuth.objects.create(user=self.user, provider="google-oauth2", uid="alt@example.com", extra_data={})
+        response = self.client.patch(
+            "/api/linked_accounts/github/",
+            {"login_enabled": False},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(UserSocialAuth.objects.filter(user=self.user, provider="github").exists())
+
     def test_patch_rejects_enable_when_sso_enforcement_blocks(self):
         self._enforce_sso("google-oauth2")
         UserSocialIdentity.objects.create(user=self.user, provider="github", uid="42", extra_data={"login": "octo"})
