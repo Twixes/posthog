@@ -77,12 +77,12 @@ class VideoSegmentClusteringWorkflow(PostHogWorkflow):
     async def run_priming_child_workflows(self, *, team_id: int, prime_info: GetSessionsToPrimeResult) -> None:
         sessions_summarized = 0
         sessions_failed = 0
-        if prime_info.user_id is None:
-            raise ApplicationError(f"No user with access to team {team_id} found for running summarization")
-        user_id: int = prime_info.user_id
         if not prime_info.session_ids_to_summarize:
             workflow.logger.debug(f"Priming complete: {sessions_summarized} summarized, {sessions_failed} failed")
             return
+        if prime_info.user_id is None:
+            raise ApplicationError(f"No user with access to team {team_id} found for running summarization")
+        user_id: int = prime_info.user_id
 
         async def summarize_session(session_id: str) -> bool:
             redis_key_base = f"session-summary:single:{user_id}-{team_id}:{session_id}"
